@@ -1,10 +1,8 @@
 from typing import List
-from io import StringIO
 import time
 from datetime import timedelta
 import yaml
 from pathlib import Path
-from prettytable import PrettyTable
 import pandas as pd
 
 from model.database import Database
@@ -14,20 +12,19 @@ from database.query import run_select_query, run_update_query
 
 
 def return_select_result(databases: List[Database], query: str, file_name: str = 'data'):
-    table = PrettyTable()
+    result_list: List[pd.DataFrame] = []
     for database in databases:
         try:
             result: Result = run_select_query(database=database, query=query)
 
-            table.field_names = result.columns
-            table.add_rows(result.data)
+            df = pd.DataFrame(data=result.data, columns=result.columns)
+            result_list.append(df)
 
-            aps_json = pd.read_json(
-                StringIO(table.get_json_string(header=False)))
-            aps_json.to_excel(file_name + '.xlsx',
-                              columns=table.field_names)
         except Exception as e:
             print(e)
+
+    result_df: pd.DataFrame = pd.concat(result_list, ignore_index=True)
+    result_df.to_excel(file_name + '.xlsx', index=False)
 
 
 def return_update_query(databases: List[Database], query: str):
@@ -66,11 +63,12 @@ def organize_databases(main_database: Database, main_query: str) -> List[Databas
 
     return databases
 
+
 CONFIG_PATH = "config.yml"
 CONFIG_LOCAL_PATH = "config.local.yml"
 QUERY_PATH = "query.sql"
 
-if(Path(CONFIG_LOCAL_PATH).exists()):
+if (Path(CONFIG_LOCAL_PATH).exists()):
     with open(CONFIG_LOCAL_PATH, "r", encoding='utf8') as file:
         config = yaml.full_load(file)
 else:
